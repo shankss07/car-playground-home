@@ -1,12 +1,59 @@
-// Update this page (the content is just a fallback if you fail to update the page)
 
-const Index = () => {
+import React from 'react';
+import PlayButton from '../components/PlayButton';
+import GameFeature from '../components/GameFeature';
+import GameStats from '../components/GameStats';
+import { Car } from 'lucide-react';
+
+const Index: React.FC = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="min-h-screen w-full overflow-x-hidden">
+      {/* Hero Section */}
+      <div className="container mx-auto px-4 py-24 flex flex-col items-center">
+        <div className="text-center mb-12">
+          <h1 className="text-6xl md:text-7xl font-bold mb-4">
+            <span className="text-racing-red">TURBO</span>
+            <span className="text-white">RACING</span>
+          </h1>
+          <p className="text-racing-silver text-xl md:text-2xl max-w-2xl mx-auto">
+            The most intense online racing experience. Choose your car, customize your ride, and leave your opponents in the dust.
+          </p>
+        </div>
+
+        {/* Play Button */}
+        <div className="mb-16">
+          <PlayButton />
+        </div>
+
+        {/* Game Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+          <GameFeature
+            icon={<Car size={32} />}
+            title="Exotic Cars"
+            description="Race with over 50 meticulously detailed exotic cars from the world's top manufacturers."
+          />
+          <GameFeature
+            icon={<Car size={32} />}
+            title="Global Tracks"
+            description="Compete on famous tracks from around the world with realistic weather conditions."
+          />
+          <GameFeature
+            icon={<Car size={32} />}
+            title="Multiplayer"
+            description="Challenge your friends or race against players from around the globe."
+          />
+        </div>
+
+        {/* Game Stats */}
+        <div className="w-full max-w-5xl">
+          <GameStats />
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="py-6 text-center text-racing-silver">
+        <p>© 2023 TURBO RACING. All rights reserved.</p>
+      </footer>
     </div>
   );
 };
