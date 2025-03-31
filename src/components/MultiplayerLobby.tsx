@@ -65,6 +65,7 @@ const MultiplayerLobby: React.FC = () => {
     
     setIsLoading(true);
     const roomId = await createNewRoom(user, newRoomName, 'default');
+    console.log("Check room creation", roomId);
     setIsLoading(false);
     setIsCreateRoomDialogOpen(false);
     

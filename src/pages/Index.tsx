@@ -1,13 +1,31 @@
-import React from 'react';
+// src/pages/Index.tsx
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Car, Users } from 'lucide-react';
 import PlayButton from '../components/PlayButton';
 import GameFeature from '../components/GameFeature';
 import GameStats from '../components/GameStats';
+import { Car, Users } from 'lucide-react';
+import LoginModal from '../components/LoginModal';
+import { useAuthStore } from '../services/AuthService';
 
 const Index: React.FC = () => {
+  const { isAuthenticated, user } = useAuthStore();
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  
+  const handleMultiplayerClick = () => {
+    if (!isAuthenticated) {
+      setIsLoginModalOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
+      
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-24 flex flex-col items-center">
         <div className="text-center mb-12">
@@ -24,14 +42,20 @@ const Index: React.FC = () => {
         <div className="mb-16 flex flex-col md:flex-row gap-4 items-center">
           <PlayButton />
           
-          <Link to="/multiplayer">
+          {isAuthenticated ? (
+            <Link to="/lobby" className="group flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-xl rounded-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 hover:scale-105">
+              <span>MULTIPLAYER</span>
+              <Users className="ml-2 group-hover:translate-x-1 transition-transform duration-300" size={24} />
+            </Link>
+          ) : (
             <button 
-              className="group flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-xl rounded-full metal-gradient hover:brightness-110 transition-all duration-300 hover:scale-105"
+              onClick={handleMultiplayerClick} 
+              className="group flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-xl rounded-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 hover:scale-105"
             >
               <span>MULTIPLAYER</span>
-              <Users className="ml-2 group-hover:scale-110 transition-transform duration-300" size={24} />
+              <Users className="ml-2 group-hover:translate-x-1 transition-transform duration-300" size={24} />
             </button>
-          </Link>
+          )}
         </div>
 
         {/* Game Features */}
@@ -49,7 +73,7 @@ const Index: React.FC = () => {
           <GameFeature
             icon={<Users size={32} />}
             title="Multiplayer"
-            description="Challenge your friends or race against players from around the globe in our new multiplayer mode."
+            description="Challenge your friends or race against players from around the globe in real-time multiplayer races."
           />
         </div>
 
