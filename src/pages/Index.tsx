@@ -1,9 +1,9 @@
-
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Car, Users } from 'lucide-react';
 import PlayButton from '../components/PlayButton';
 import GameFeature from '../components/GameFeature';
 import GameStats from '../components/GameStats';
-import { Car } from 'lucide-react';
 
 const Index: React.FC = () => {
   return (
@@ -20,9 +20,18 @@ const Index: React.FC = () => {
           </p>
         </div>
 
-        {/* Play Button */}
-        <div className="mb-16">
+        {/* Play Buttons */}
+        <div className="mb-16 flex flex-col md:flex-row gap-4 items-center">
           <PlayButton />
+          
+          <Link to="/multiplayer">
+            <button 
+              className="group flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-xl rounded-full metal-gradient hover:brightness-110 transition-all duration-300 hover:scale-105"
+            >
+              <span>MULTIPLAYER</span>
+              <Users className="ml-2 group-hover:scale-110 transition-transform duration-300" size={24} />
+            </button>
+          </Link>
         </div>
 
         {/* Game Features */}
@@ -38,9 +47,9 @@ const Index: React.FC = () => {
             description="Compete on famous tracks from around the world with realistic weather conditions."
           />
           <GameFeature
-            icon={<Car size={32} />}
+            icon={<Users size={32} />}
             title="Multiplayer"
-            description="Challenge your friends or race against players from around the globe."
+            description="Challenge your friends or race against players from around the globe in our new multiplayer mode."
           />
         </div>
 
@@ -52,7 +61,7 @@ const Index: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-6 text-center text-racing-silver">
-        <p>© 2023 TURBO RACING. All rights reserved.</p>
+        <p>© 2025 TURBO RACING. All rights reserved.</p>
       </footer>
     </div>
   );
