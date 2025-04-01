@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Link } from 'react-router-dom';
@@ -17,6 +16,16 @@ interface PoliceCar {
   mesh: THREE.Group;
   speed: number;
   chaseDistance: number;
+  lights: {
+    red: THREE.Mesh;
+    blue: THREE.Mesh;
+  };
+  wheels: {
+    fl: THREE.Mesh;
+    fr: THREE.Mesh;
+    rl: THREE.Mesh;
+    rr: THREE.Mesh;
+  };
 }
 
 const Game: React.FC = () => {
