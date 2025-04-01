@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 
 export interface PoliceCar {
@@ -14,7 +15,6 @@ export interface PoliceCar {
     rl: THREE.Mesh;
     rr: THREE.Mesh;
   };
-  active: boolean; // Whether this police car is active in the chase
 }
 
 export const createPoliceCar = (x: number, z: number): PoliceCar => {
@@ -115,19 +115,11 @@ export const createPoliceCar = (x: number, z: number): PoliceCar => {
     lights: {
       red: redLight,
       blue: blueLight
-    },
-    active: true
+    }
   };
 };
 
-export const updatePoliceCar = (
-  police: PoliceCar, 
-  playerPosition: THREE.Vector3, 
-  deltaTime: number, 
-  difficulty: number
-): void => {
-  if (!police.active) return; // Skip if police car is not active
-  
+export const updatePoliceCar = (police: PoliceCar, playerPosition: THREE.Vector3, deltaTime: number): void => {
   // Calculate direction from police car to player
   const dx = playerPosition.x - police.mesh.position.x;
   const dz = playerPosition.z - police.mesh.position.z;
@@ -145,8 +137,7 @@ export const updatePoliceCar = (
   while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
   
   // Apply rotation gradually (with a max rotation speed)
-  // Increase rotation speed with difficulty
-  const maxRotation = 0.05 * (1 + difficulty * 0.05);
+  const maxRotation = 0.05;
   if (Math.abs(normalizedDiff) > maxRotation) {
     police.mesh.rotation.y += Math.sign(normalizedDiff) * maxRotation;
   } else {
@@ -156,22 +147,17 @@ export const updatePoliceCar = (
   // Calculate distance to player
   const distanceToPlayer = Math.sqrt(dx * dx + dz * dz);
   
-  // Enhanced chasing behavior
-  // Scale speed with difficulty
-  const speedMultiplier = 1 + (difficulty - 1) * 0.1; // 10% faster per difficulty level
-  const currentSpeed = police.speed * speedMultiplier;
-  
-  // Move towards player if not too close
-  if (distanceToPlayer > police.chaseDistance * 0.5) {
-    police.mesh.position.x += Math.sin(police.mesh.rotation.y) * currentSpeed;
-    police.mesh.position.z += Math.cos(police.mesh.rotation.y) * currentSpeed;
+  // Move towards player with a maximum chase distance
+  if (distanceToPlayer > police.chaseDistance) {
+    police.mesh.position.x += Math.sin(police.mesh.rotation.y) * police.speed;
+    police.mesh.position.z += Math.cos(police.mesh.rotation.y) * police.speed;
   }
   
   // Animate wheels
-  police.wheels.fl.rotation.x += currentSpeed * 0.5;
-  police.wheels.fr.rotation.x += currentSpeed * 0.5;
-  police.wheels.rl.rotation.x += currentSpeed * 0.5;
-  police.wheels.rr.rotation.x += currentSpeed * 0.5;
+  police.wheels.fl.rotation.x += police.speed * 0.5;
+  police.wheels.fr.rotation.x += police.speed * 0.5;
+  police.wheels.rl.rotation.x += police.speed * 0.5;
+  police.wheels.rr.rotation.x += police.speed * 0.5;
 };
 
 export const flashPoliceLights = (policeCars: PoliceCar[], lightFlashTime: number): void => {
@@ -186,33 +172,4 @@ export const flashPoliceLights = (policeCars: PoliceCar[], lightFlashTime: numbe
       (police.lights.blue.material as THREE.MeshBasicMaterial).color.setHex(0x0000ff);
     }
   });
-};
-
-export const spawnPoliceCar = (
-  playerPosition: THREE.Vector3,
-  existingCars: PoliceCar[]
-): PoliceCar => {
-  // Spawn the car in a position around the player
-  const spawnDistance = 70 + Math.random() * 30; // 70-100 units away
-  const spawnAngle = Math.random() * Math.PI * 2; // Random angle around player
-  
-  const spawnX = playerPosition.x + Math.sin(spawnAngle) * spawnDistance;
-  const spawnZ = playerPosition.z + Math.cos(spawnAngle) * spawnDistance;
-  
-  // Create a new police car
-  return createPoliceCar(spawnX, spawnZ);
-};
-
-export const resetPoliceCar = (
-  police: PoliceCar,
-  playerPosition: THREE.Vector3
-): void => {
-  const spawnDistance = 70 + Math.random() * 30; // 70-100 units away
-  const spawnAngle = Math.random() * Math.PI * 2; // Random angle around player
-  
-  const spawnX = playerPosition.x + Math.sin(spawnAngle) * spawnDistance;
-  const spawnZ = playerPosition.z + Math.cos(spawnAngle) * spawnDistance;
-  
-  police.mesh.position.set(spawnX, 0, spawnZ);
-  police.active = true;
 };

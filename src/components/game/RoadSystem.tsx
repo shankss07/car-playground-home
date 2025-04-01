@@ -1,6 +1,7 @@
+
 import * as THREE from 'three';
 
-export interface RoadSegment {
+interface RoadSegment {
   road: THREE.Mesh;
   laneMarking: THREE.Mesh;
   roadsideLeft: THREE.Mesh;
@@ -8,15 +9,10 @@ export interface RoadSegment {
   zPosition: number;
 }
 
-export interface RoadObject {
+interface RoadObject {
   mesh: THREE.Group | THREE.Mesh;
   type: string;
   collisionRadius: number;
-}
-
-export interface RoadObjectType {
-  name: string;
-  create: (x: number, z: number) => RoadObject;
 }
 
 export const createRoadSegment = (zPosition: number): RoadSegment => {
@@ -76,6 +72,11 @@ export const createRoadSegment = (zPosition: number): RoadSegment => {
     zPosition
   };
 };
+
+interface RoadObjectType {
+  name: string;
+  create: (x: number, z: number) => RoadObject;
+}
 
 export const createRoadObjectTypes = (): RoadObjectType[] => {
   return [
