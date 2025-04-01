@@ -4,8 +4,8 @@ import GameSettings from '../components/game/GameSettings';
 import StartScreen from '../components/game/StartScreen';
 import GameHUD from '../components/game/GameHUD';
 import GameCanvas from '../components/game/GameCanvas';
-import { initialGameState } from '../components/game/GameEngine';
-import { GameState } from '../components/game/GameEngine';
+import { initialGameState } from '../components/game/GameStateManager';
+import { GameState } from '../components/game/GameStateManager';
 
 const Game: React.FC = () => {
   const [carColor, setCarColor] = useState<number>(0xff0000); // Default red

@@ -1,14 +1,7 @@
 
 import * as THREE from 'three';
 import { PoliceCar, createPoliceCar, updatePoliceCar, flashPoliceLights, resetPoliceCar } from './PoliceCar';
-import { GameState } from './GameEngine';
-
-interface PoliceSystemProps {
-  scene: THREE.Scene;
-  playerPosition: THREE.Vector3;
-  gameState: GameState;
-  deltaTime: number;
-}
+import { GameState } from './GameStateManager';
 
 export const createPoliceSystem = (scene: THREE.Scene): PoliceCar[] => {
   // Maximum number of police cars

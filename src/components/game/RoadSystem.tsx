@@ -14,6 +14,11 @@ export interface RoadObject {
   collisionRadius: number;
 }
 
+export interface RoadObjectType {
+  name: string;
+  create: (x: number, z: number) => RoadObject;
+}
+
 export const createRoadSegment = (zPosition: number): RoadSegment => {
   const roadWidth = 20;
   

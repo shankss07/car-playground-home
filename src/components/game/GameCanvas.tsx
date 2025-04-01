@@ -3,7 +3,9 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 // Import game subsystems
-import { initThreeJS, handleResize, updateCamera, updateGameState, GameState } from './GameEngine';
+import { initThreeJS } from './ThreeJSInitializer';
+import { handleResize, updateCamera } from './CameraSystem';
+import { updateGameState, GameState } from './GameStateManager';
 import { initializePlayerCar, updatePlayerCar, updateCarWheels, updateCarColor } from './CarController';
 import { createPoliceSystem, updatePoliceSystem, updatePoliceLights } from './PoliceSystem';
 import { initializeRoadSystem, updateRoadSystem, generateNewRoadObject } from './RoadManager';
@@ -42,6 +44,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     
     // Initialize road system
     const roadSegmentLength = 100;
+    const roadLength = 1000; // Define roadLength variable
     const maxRoadObjects = 100;
     const { roadSegments, roadObjects, roadObjectTypes } = initializeRoadSystem(scene);
     

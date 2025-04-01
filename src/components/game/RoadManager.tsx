@@ -6,27 +6,23 @@ import {
   updateRoadSegments,
   generateRoadObject,
   cleanupRoadObjects,
-  RoadSegment as RoadSegmentType,
-  RoadObject as RoadObjectType
+  RoadSegment,
+  RoadObject,
+  RoadObjectType
 } from './RoadSystem';
-
-interface RoadManagerProps {
-  scene: THREE.Scene;
-  playerPosition: THREE.Vector3;
-}
 
 export const initializeRoadSystem = (
   scene: THREE.Scene
 ): {
-  roadSegments: RoadSegmentType[];
-  roadObjects: RoadObjectType[];
-  roadObjectTypes: any[];
+  roadSegments: RoadSegment[];
+  roadObjects: RoadObject[];
+  roadObjectTypes: RoadObjectType[];
 } => {
   // Game road system setup
   const roadLength = 1000;
   const roadSegmentLength = 100;
   const numRoadSegments = roadLength / roadSegmentLength;
-  const roadSegments: RoadSegmentType[] = [];
+  const roadSegments: RoadSegment[] = [];
   
   // Create initial road segments
   for (let i = 0; i < numRoadSegments; i++) {
@@ -37,7 +33,7 @@ export const initializeRoadSystem = (
   }
   
   // Road objects system
-  const roadObjects: RoadObjectType[] = [];
+  const roadObjects: RoadObject[] = [];
   const roadObjectTypes = createRoadObjectTypes();
   
   return {
@@ -49,9 +45,9 @@ export const initializeRoadSystem = (
 
 export const updateRoadSystem = (
   scene: THREE.Scene,
-  roadSegments: RoadSegmentType[],
-  roadObjects: RoadObjectType[],
-  roadObjectTypes: any[],
+  roadSegments: RoadSegment[],
+  roadObjects: RoadObject[],
+  roadObjectTypes: RoadObjectType[],
   playerPosition: THREE.Vector3,
   roadSegmentLength: number,
   numRoadSegments: number,
@@ -66,8 +62,8 @@ export const updateRoadSystem = (
 
 export const generateNewRoadObject = (
   scene: THREE.Scene,
-  roadObjects: RoadObjectType[],
-  roadObjectTypes: any[],
+  roadObjects: RoadObject[],
+  roadObjectTypes: RoadObjectType[],
   playerPosition: THREE.Vector3,
   maxRoadObjects: number
 ): void => {
