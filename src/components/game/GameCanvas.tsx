@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { createPlayerCar, updateCarPhysics } from './Car';
 import { 
   PoliceCar, 
+  createPoliceCar, 
   updatePoliceCar, 
   flashPoliceLights,
   resetPoliceCar
