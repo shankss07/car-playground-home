@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { PoliceCar } from './PoliceCar';
 
@@ -88,4 +87,114 @@ export const handleResize = (
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+};
+
+// Check collision between player car and police cars
+export const checkCarCollision = (
+  playerPosition: THREE.Vector3,
+  policePosition: THREE.Vector3,
+  collisionDistance: number = 3.0 // Adjust based on car size
+): boolean => {
+  // Calculate distance between player and police car
+  const dx = playerPosition.x - policePosition.x;
+  const dz = playerPosition.z - policePosition.z;
+  const distance = Math.sqrt(dx * dx + dz * dz);
+  
+  // Return true if collision detected
+  return distance < collisionDistance;
+};
+
+// Track collision duration with a specific police car
+export const updateCollisionTimer = (
+  isColliding: boolean,
+  collisionStartTime: number | null,
+  currentTime: number
+): {
+  collisionStartTime: number | null;
+  collisionDuration: number;
+} => {
+  let updatedStartTime = collisionStartTime;
+  let duration = 0;
+  
+  if (isColliding) {
+    if (collisionStartTime === null) {
+      // Collision just started
+      updatedStartTime = currentTime;
+    } else {
+      // Calculate how long collision has been happening
+      duration = currentTime - collisionStartTime;
+    }
+  } else {
+    // No collision, reset timer
+    updatedStartTime = null;
+  }
+  
+  return {
+    collisionStartTime: updatedStartTime,
+    collisionDuration: duration
+  };
+};
+
+export interface GameState {
+  score: number;
+  gameOver: boolean;
+  collisionTime: number;
+  maxCollisionTime: number;
+  elapsedTime: number;
+  difficulty: number;
+  policeCarsCount: number;
+}
+
+export const initialGameState: GameState = {
+  score: 0,
+  gameOver: false,
+  collisionTime: 0,
+  maxCollisionTime: 5, // 5 seconds to game over
+  elapsedTime: 0,
+  difficulty: 1,
+  policeCarsCount: 3 // Start with 3 police cars
+};
+
+// Update game state based on time survived
+export const updateGameState = (
+  gameState: GameState,
+  deltaTime: number,
+  isColliding: boolean
+): GameState => {
+  // Don't update if game is over
+  if (gameState.gameOver) {
+    return gameState;
+  }
+  
+  // Calculate new elapsed time
+  const newElapsedTime = gameState.elapsedTime + deltaTime;
+  
+  // Update collision timer if colliding
+  let newCollisionTime = isColliding 
+    ? gameState.collisionTime + deltaTime
+    : 0;
+    
+  // Check if game over condition met
+  const gameOver = newCollisionTime >= gameState.maxCollisionTime;
+  
+  // Calculate score based on time survived
+  const newScore = Math.floor(newElapsedTime * 10);
+  
+  // Calculate difficulty increase
+  // Every 30 seconds, difficulty increases
+  const difficultyLevel = Math.floor(newElapsedTime / 30) + 1;
+  
+  // Calculate how many police cars should be active
+  // Add 1 police car for every 2 difficulty levels
+  const policeCarsCount = 3 + Math.floor(difficultyLevel / 2);
+  
+  return {
+    score: newScore,
+    gameOver: gameOver,
+    collisionTime: newCollisionTime,
+    maxCollisionTime: gameState.maxCollisionTime,
+    elapsedTime: newElapsedTime,
+    difficulty: difficultyLevel,
+    policeCarsCount: policeCarsCount
+  };
 };

@@ -16,7 +16,11 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame }) => {
       >
         START ENGINE
       </button>
-      <p className="mt-8 text-racing-silver">Use W, A, S, D keys to drive the car</p>
+      <div className="mt-8 text-racing-silver max-w-md mx-auto">
+        <p className="mb-2">Use W, A, S, D keys to drive the car</p>
+        <p className="mb-2">Avoid police cars! If they touch you for 5 seconds, it's game over!</p>
+        <p className="mb-2">The longer you survive, the higher your score and more police will join the chase!</p>
+      </div>
       <Link to="/" className="mt-8 text-sm text-racing-silver hover:text-white underline">
         Back to Home
       </Link>

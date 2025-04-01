@@ -5,10 +5,18 @@ import * as THREE from 'three';
 // Import components
 import GameSettings from '../components/game/GameSettings';
 import StartScreen from '../components/game/StartScreen';
+import GameHUD from '../components/game/GameHUD';
 
 // Import game utilities
 import { createPlayerCar, updateCarPhysics } from '../components/game/Car';
-import { PoliceCar, createPoliceCar, updatePoliceCar, flashPoliceLights } from '../components/game/PoliceCar';
+import { 
+  PoliceCar, 
+  createPoliceCar, 
+  updatePoliceCar, 
+  flashPoliceLights,
+  spawnPoliceCar,
+  resetPoliceCar
+} from '../components/game/PoliceCar';
 import { 
   createRoadSegment, 
   createRoadObjectTypes,
@@ -16,7 +24,15 @@ import {
   generateRoadObject,
   cleanupRoadObjects 
 } from '../components/game/RoadSystem';
-import { initThreeJS, handleResize, updateCamera } from '../components/game/GameEngine';
+import { 
+  initThreeJS, 
+  handleResize, 
+  updateCamera, 
+  checkCarCollision,
+  updateGameState,
+  initialGameState,
+  GameState
+} from '../components/game/GameEngine';
 
 // Define TypeScript interfaces
 interface KeysPressed {
@@ -45,10 +61,17 @@ const Game: React.FC = () => {
   const [maxSpeedFactor, setMaxSpeedFactor] = useState<number>(1); // Default speed multiplier
   const [showSettings, setShowSettings] = useState<boolean>(true);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
   
   // Start the game
   const startGame = () => {
     setGameStarted(true);
+    setGameState(initialGameState);
+  };
+
+  // Restart game after game over
+  const restartGame = () => {
+    setGameState(initialGameState);
   };
 
   useEffect(() => {
@@ -93,16 +116,30 @@ const Game: React.FC = () => {
       }
     }, 500);
     
-    // Create police cars
+    // Create police cars pool
+    const maxPoliceCars = 10; // Maximum number of police cars
     const policeCars: PoliceCar[] = [];
     
-    // Create 3 police cars at different positions
-    policeCars.push(createPoliceCar(-5, -50));
-    policeCars.push(createPoliceCar(5, -70));
-    policeCars.push(createPoliceCar(0, -90));
+    // Create initial police cars
+    for (let i = 0; i < 3; i++) {
+      const spawnDistance = 50 + i * 10;
+      const spawnAngle = Math.PI * 2 * (i / 3);
+      const x = carGroup.position.x + Math.sin(spawnAngle) * spawnDistance;
+      const z = carGroup.position.z + Math.cos(spawnAngle) * spawnDistance;
+      
+      const police = createPoliceCar(x, z);
+      policeCars.push(police);
+      scene.add(police.mesh);
+    }
     
-    // Add police cars to scene
-    policeCars.forEach(police => scene.add(police.mesh));
+    // Set remaining police cars as inactive initially
+    for (let i = 3; i < maxPoliceCars; i++) {
+      const police = createPoliceCar(0, 0);
+      police.active = false;
+      police.mesh.visible = false;
+      policeCars.push(police);
+      scene.add(police.mesh);
+    }
     
     // Flash police lights
     let lightFlashTime = 0;
@@ -125,10 +162,17 @@ const Game: React.FC = () => {
     
     // Game clock for time-based animations
     const clock = new THREE.Clock();
+    let isColliding = false;
     
     // Game loop
     const animate = (): void => {
       const deltaTime = clock.getDelta();
+      
+      // Skip if game is over
+      if (gameState.gameOver) {
+        animationFrameId.current = requestAnimationFrame(animate);
+        return;
+      }
       
       // Update car physics
       const carPhysicsUpdate = updateCarPhysics(
@@ -155,10 +199,40 @@ const Game: React.FC = () => {
       wheelRL.rotation.x += wheelRotationSpeed;
       wheelRR.rotation.x += wheelRotationSpeed;
       
-      // Update police cars
-      policeCars.forEach(police => {
-        updatePoliceCar(police, carGroup.position, deltaTime);
-      });
+      // Activate/deactivate police cars based on current difficulty
+      const activePoliceCarsNeeded = gameState.policeCarsCount;
+      
+      let activePoliceCars = 0;
+      for (const police of policeCars) {
+        if (activePoliceCars < activePoliceCarsNeeded) {
+          if (!police.active) {
+            // Activate this police car
+            resetPoliceCar(police, carGroup.position);
+            police.mesh.visible = true;
+          }
+          activePoliceCars++;
+        } else if (police.active) {
+          // Deactivate excess police cars
+          police.active = false;
+          police.mesh.visible = false;
+        }
+      }
+      
+      // Update police cars and check for collisions
+      isColliding = false;
+      for (let i = 0; i < policeCars.length; i++) {
+        const police = policeCars[i];
+        if (!police.active) continue;
+        
+        // Update police car AI with current difficulty
+        updatePoliceCar(police, carGroup.position, deltaTime, gameState.difficulty);
+        
+        // Check for collision with player
+        if (checkCarCollision(carGroup.position, police.mesh.position)) {
+          isColliding = true;
+          break; // One collision is enough to start the timer
+        }
+      }
       
       // Flash police lights
       lightFlashTime += deltaTime;
@@ -172,6 +246,10 @@ const Game: React.FC = () => {
       
       // Update camera position
       updateCamera(camera, carGroup.position, carRotation);
+      
+      // Update game state with collision info
+      const newGameState = updateGameState(gameState, deltaTime, isColliding);
+      setGameState(newGameState);
       
       // Render scene
       renderer.render(scene, camera);
@@ -204,21 +282,27 @@ const Game: React.FC = () => {
         mountRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [carColor, maxSpeedFactor, gameStarted]); // Re-run effect when car color or speed factor changes
+  }, [carColor, maxSpeedFactor, gameStarted, gameState.gameOver]); // Re-run effect when car color or speed factor changes
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-racing-dark">
       {!gameStarted ? (
         <StartScreen onStartGame={startGame} />
       ) : (
-        <div ref={mountRef} className="w-screen h-screen overflow-hidden">
-          <GameSettings
-            showSettings={showSettings}
-            setShowSettings={setShowSettings}
-            carColor={carColor}
-            setCarColor={setCarColor}
-            maxSpeedFactor={maxSpeedFactor}
-            setMaxSpeedFactor={setMaxSpeedFactor}
+        <div className="relative w-screen h-screen overflow-hidden">
+          <div ref={mountRef} className="w-screen h-screen overflow-hidden">
+            <GameSettings
+              showSettings={showSettings}
+              setShowSettings={setShowSettings}
+              carColor={carColor}
+              setCarColor={setCarColor}
+              maxSpeedFactor={maxSpeedFactor}
+              setMaxSpeedFactor={setMaxSpeedFactor}
+            />
+          </div>
+          <GameHUD 
+            gameState={gameState}
+            restartGame={restartGame}
           />
         </div>
       )}
