@@ -1,42 +1,7 @@
-// src/pages/Game.tsx
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../services/AuthService';
-import { 
-  useMultiplayerStore, 
-  OnlinePlayer,
-  PlayerPosition, 
-  ChatMessage 
-} from '../services/MultiplayerService';
-import { 
-  Users,
-  MessageSquare,
-  X,
-  LogOut,
-  Settings,
-  ArrowLeft
-} from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import LoginModal from '../components/LoginModal';
+import { Link } from 'react-router-dom';
 
 // Define TypeScript interfaces
 interface ColorOption {
@@ -48,37 +13,14 @@ interface KeysPressed {
   [key: string]: boolean;
 }
 
-// Map to store other players' 3D objects
-const playerMeshes = new Map<string, THREE.Group>();
-
 const Game: React.FC = () => {
-  const navigate = useNavigate();
   const mountRef = useRef<HTMLDivElement>(null);
   const keysPressed = useRef<KeysPressed>({});
   const animationFrameId = useRef<number | null>(null);
-  const carGroupRef = useRef<THREE.Group | null>(null);
-  const frameTimeRef = useRef<number>(Date.now());
-  const lastPositionUpdateRef = useRef<number>(Date.now());
-  
   const [carColor, setCarColor] = useState<number>(0xff0000); // Default red
   const [maxSpeedFactor, setMaxSpeedFactor] = useState<number>(1); // Default speed multiplier
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(true);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
-  const [showSidebar, setShowSidebar] = useState<boolean>(false);
-  const [chatMessage, setChatMessage] = useState<string>('');
-  
-  // Auth and multiplayer state
-  const { user, isAuthenticated } = useAuthStore();
-  const { 
-    currentRoom, 
-    onlinePlayers, 
-    chatMessages, 
-    updatePlayerPosition, 
-    sendChatMessage,
-    leaveRoom,
-    disconnectFromMultiplayer
-  } = useMultiplayerStore();
 
   // Available car colors with names
   const colorOptions: ColorOption[] = [
@@ -92,46 +34,13 @@ const Game: React.FC = () => {
     { name: "White", hex: 0xffffff }
   ];
   
-  // Check if the user is authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsLoginModalOpen(true);
-    } else if (user) {
-      // Update car color from user preferences
-      if (user.carColor) {
-        setCarColor(user.carColor);
-      }
-    }
-  }, [isAuthenticated, user]);
-  
-  // If the user is not in a room, redirect to lobby
-  useEffect(() => {
-    if (isAuthenticated && !currentRoom) {
-      navigate('/lobby');
-    }
-  }, [isAuthenticated, currentRoom, navigate]);
-  
   // Start the game
   const startGame = () => {
     setGameStarted(true);
   };
 
-  const handleSendChatMessage = () => {
-    if (user && chatMessage.trim() !== '') {
-      sendChatMessage(user, chatMessage);
-      setChatMessage('');
-    }
-  };
-
-  const handleExitGame = () => {
-    if (leaveRoom) {
-      leaveRoom();
-    }
-    navigate('/lobby');
-  };
-
   useEffect(() => {
-    if (!mountRef.current || !gameStarted || !user) return;
+    if (!mountRef.current || !gameStarted) return;
 
     // Three.js initialization
     const scene = new THREE.Scene();
@@ -154,7 +63,6 @@ const Game: React.FC = () => {
     
     // Game objects and variables
     const carGroup = new THREE.Group();
-    carGroupRef.current = carGroup;
     let carSpeed = 0;
     let carRotation = 0;
     
@@ -210,37 +118,6 @@ const Game: React.FC = () => {
     wheelRR.position.set(1.2, 0.5, 1.2);
     wheelRR.castShadow = true;
     carGroup.add(wheelRR);
-    
-    // Add player name floating above car
-    const createNameTag = (name: string, color: string = '#ffffff') => {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = 256;
-      canvas.height = 64;
-      
-      if (context) {
-        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 30px Arial';
-        context.textAlign = 'center';
-        context.fillStyle = color;
-        context.fillText(name, canvas.width / 2, canvas.height / 2 + 10);
-      }
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-      const sprite = new THREE.Sprite(material);
-      sprite.position.set(0, 3, 0);
-      sprite.scale.set(5, 1.5, 1);
-      
-      return sprite;
-    };
-
-    // Add name tag for current player
-    if (user) {
-      const nameTag = createNameTag(user.displayName);
-      carGroup.add(nameTag);
-    }
     
     // Add car to scene
     carGroup.position.set(0, 0, 0);
@@ -319,98 +196,6 @@ const Game: React.FC = () => {
       }
     }
     
-    // Helper function to create cars for other players
-    const createPlayerCar = (player: OnlinePlayer): THREE.Group => {
-      const playerCarGroup = new THREE.Group();
-      
-      // Car body
-      const playerCarColor = player.carColor || 0x0000ff; // Default blue for other players
-      const playerBodyGeometry = new THREE.BoxGeometry(2, 1, 4);
-      const playerBodyMaterial = new THREE.MeshStandardMaterial({ color: playerCarColor });
-      const playerBody = new THREE.Mesh(playerBodyGeometry, playerBodyMaterial);
-      playerBody.position.y = 0.5;
-      playerBody.castShadow = true;
-      playerCarGroup.add(playerBody);
-      
-      // Car cabin
-      const playerCabinGeometry = new THREE.BoxGeometry(1.5, 0.8, 2);
-      const playerCabinMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
-      const playerCabin = new THREE.Mesh(playerCabinGeometry, playerCabinMaterial);
-      playerCabin.position.y = 1.4;
-      playerCabin.position.z = -0.5;
-      playerCabin.castShadow = true;
-      playerCarGroup.add(playerCabin);
-      
-      // Wheels (simplified for other players)
-      const playerWheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-      playerWheelGeometry.rotateX(Math.PI / 2);
-      const playerWheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
-      
-      // Add 4 wheels
-      const wheelPositions = [
-        [-1.2, 0.5, -1.2], [1.2, 0.5, -1.2],
-        [-1.2, 0.5, 1.2], [1.2, 0.5, 1.2]
-      ];
-      
-      for (const [x, y, z] of wheelPositions) {
-        const wheel = new THREE.Mesh(playerWheelGeometry, playerWheelMaterial);
-        wheel.position.set(x, y, z);
-        wheel.castShadow = true;
-        playerCarGroup.add(wheel);
-      }
-      
-      // Add player name tag
-      const nameTag = createNameTag(player.displayName, player.avatarColor || '#ffffff');
-      playerCarGroup.add(nameTag);
-      
-      // Set initial position
-      if (player.position) {
-        playerCarGroup.position.set(
-          player.position.x,
-          player.position.y || 0,
-          player.position.z
-        );
-        playerCarGroup.rotation.y = player.position.rotationY || 0;
-      }
-      
-      // Add to scene
-      scene.add(playerCarGroup);
-      
-      return playerCarGroup;
-    };
-    
-    // Update or create meshes for other players
-    const updateOtherPlayers = () => {
-      // First filter out the current player
-      const otherPlayers = onlinePlayers.filter(player => player.id !== user.id);
-      
-      // Remove players that have left
-      playerMeshes.forEach((mesh, playerId) => {
-        if (!otherPlayers.some(player => player.id === playerId)) {
-          scene.remove(mesh);
-          playerMeshes.delete(playerId);
-        }
-      });
-      
-      // Update or create meshes for current players
-      otherPlayers.forEach(player => {
-        if (playerMeshes.has(player.id)) {
-          // Update existing player mesh
-          const mesh = playerMeshes.get(player.id)!;
-          if (player.position) {
-            mesh.position.x = player.position.x;
-            mesh.position.y = player.position.y || 0;
-            mesh.position.z = player.position.z;
-            mesh.rotation.y = player.position.rotationY || 0;
-          }
-        } else {
-          // Create new player mesh
-          const newMesh = createPlayerCar(player);
-          playerMeshes.set(player.id, newMesh);
-        }
-      });
-    };
-    
     // Handle keyboard controls
     const handleKeyDown = (e: KeyboardEvent): void => {
       keysPressed.current[e.key.toLowerCase()] = true;
@@ -425,10 +210,6 @@ const Game: React.FC = () => {
     
     // Game loop
     const animate = (): void => {
-      const currentTime = Date.now();
-      const deltaTime = (currentTime - frameTimeRef.current) / 1000; // seconds
-      frameTimeRef.current = currentTime;
-
       // Handle car acceleration/deceleration
       if (keysPressed.current['w']) {
         carSpeed = Math.min(MAX_SPEED, carSpeed + ACCELERATION);
@@ -488,27 +269,6 @@ const Game: React.FC = () => {
         carGroup.position.z
       );
       
-      // Update other players
-      updateOtherPlayers();
-      
-      // Send position updates to multiplayer service (throttled to every 100ms)
-      if (currentTime - lastPositionUpdateRef.current > 100) {
-        lastPositionUpdateRef.current = currentTime;
-        
-        if (user && updatePlayerPosition) {
-          const position: PlayerPosition = {
-            x: carGroup.position.x,
-            y: carGroup.position.y,
-            z: carGroup.position.z,
-            rotationY: carRotation,
-            speed: carSpeed,
-            timestamp: currentTime
-          };
-          
-          updatePlayerPosition(user, position);
-        }
-      }
-      
       // Render scene
       renderer.render(scene, camera);
       
@@ -536,62 +296,24 @@ const Game: React.FC = () => {
       if (mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
       }
-      
-      // Clear player meshes
-      playerMeshes.forEach((mesh) => {
-        scene.remove(mesh);
-      });
-      playerMeshes.clear();
     };
-  }, [carColor, maxSpeedFactor, gameStarted, user, onlinePlayers, updatePlayerPosition]); // Re-run effect when car color or speed factor changes
-
-  // Clean up on component unmount
-  useEffect(() => {
-    return () => {
-      if (leaveRoom) {
-        leaveRoom();
-      }
-    };
-  }, [leaveRoom]);
-
-  // Format timestamp to readable time
-  const formatTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, [carColor, maxSpeedFactor, gameStarted]); // Re-run effect when car color or speed factor changes
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-racing-dark">
-      {/* Login modal */}
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
-      
       {!gameStarted ? (
         <div className="flex flex-col items-center justify-center h-full">
-          <h1 className="text-5xl font-bold mb-6 text-white">MULTIPLAYER RACE</h1>
-          {currentRoom && (
-            <div className="mb-8 text-racing-silver text-xl">
-              Room: {currentRoom.name}
-            </div>
-          )}
-          
+          <h1 className="text-5xl font-bold mb-6 text-white">READY TO RACE?</h1>
           <button 
             className="px-10 py-5 text-2xl font-bold bg-racing-red hover:bg-red-700 text-white rounded-full transition-all duration-200 transform hover:scale-105"
             onClick={startGame}
           >
             START ENGINE
           </button>
-          
           <p className="mt-8 text-racing-silver">Use W, A, S, D keys to drive the car</p>
-          <p className="mt-2 text-racing-silver">{onlinePlayers.length} players in this room</p>
-          
-          <Button 
-            variant="outline" 
-            className="mt-6"
-            onClick={handleExitGame}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Lobby
-          </Button>
+          <Link to="/" className="mt-8 text-sm text-racing-silver hover:text-white underline">
+            Back to Home
+          </Link>
         </div>
       ) : (
         <div ref={mountRef} className="w-screen h-screen overflow-hidden">
@@ -604,43 +326,21 @@ const Game: React.FC = () => {
               <li><strong>A</strong> - Turn Left</li>
               <li><strong>D</strong> - Turn Right</li>
             </ul>
-            <div className="flex gap-2 mt-3">
-              <Button 
-                onClick={() => setShowSettings(!showSettings)} 
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                {showSettings ? "Hide Settings" : "Settings"}
-              </Button>
-              
-              <Button 
-                onClick={handleExitGame} 
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <LogOut className="h-3 w-3 mr-1" />
-                Exit
-              </Button>
-            </div>
+            <button 
+              className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              {showSettings ? "Hide Settings" : "Show Settings"}
+            </button>
+            <Link to="/" className="mt-2 ml-2 px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm inline-block">
+              Exit Game
+            </Link>
           </div>
 
           {/* Settings panel */}
           {showSettings && (
             <div className="absolute top-4 right-4 bg-white bg-opacity-90 p-4 rounded shadow z-10 w-64">
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="font-bold text-lg">Car Settings</h2>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 w-7 p-0" 
-                  onClick={() => setShowSettings(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              <h2 className="font-bold text-lg mb-2">Car Settings</h2>
               
               {/* Car color selection */}
               <div className="mb-4">
@@ -678,115 +378,6 @@ const Game: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Players and chat sidebar trigger */}
-          <div className="absolute bottom-4 right-4 flex gap-2 z-20">
-            <Button
-              onClick={() => setShowSidebar(true)}
-              className="bg-racing-red text-white hover:bg-red-700"
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Players ({onlinePlayers.length})
-            </Button>
-          </div>
-
-          {/* Sidebar for Players & Chat */}
-          <Sheet open={showSidebar} onOpenChange={setShowSidebar}>
-            <SheetContent className="w-80 sm:w-96 p-0">
-              <Tabs defaultValue="players" className="h-full flex flex-col">
-                <SheetHeader className="px-4 pt-4 pb-0">
-                  <SheetTitle>Multiplayer</SheetTitle>
-                </SheetHeader>
-                
-                <TabsList className="mx-4 my-2">
-                  <TabsTrigger value="players" className="flex-1">
-                    <Users className="mr-2 h-4 w-4" />
-                    Players ({onlinePlayers.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="chat" className="flex-1">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Chat
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="players" className="flex-1 flex flex-col px-4">
-                  <ScrollArea className="flex-1 pr-4">
-                    {onlinePlayers.map((player) => (
-                      <div key={player.id} className="mb-3 flex items-center">
-                        <Avatar className="h-10 w-10 mr-3">
-                          <AvatarFallback style={{ backgroundColor: player.avatarColor || '#6366f1' }}>
-                            {player.displayName.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">
-                            {player.displayName}
-                            {player.id === user?.id && (
-                              <Badge variant="outline" className="ml-2 text-xs">You</Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {onlinePlayers.length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
-                        No other players yet. Invite your friends to join!
-                      </div>
-                    )}
-                  </ScrollArea>
-                </TabsContent>
-                
-                <TabsContent value="chat" className="flex-1 flex flex-col px-4">
-                  <ScrollArea className="flex-1 pr-4 mb-4">
-                    {chatMessages.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-8">
-                        No messages yet. Say hello to other racers!
-                      </div>
-                    ) : (
-                      chatMessages.map((msg) => (
-                        <div key={msg.id} className="mb-4">
-                          <div className="flex items-start">
-                            <Avatar className="h-8 w-8 mr-2">
-                              <AvatarFallback style={{ 
-                                backgroundColor: onlinePlayers.find(p => p.id === msg.senderId)?.avatarColor || '#6366f1' 
-                              }}>
-                                {msg.senderName.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium text-sm">
-                                  {msg.senderName}
-                                  {msg.senderId === user?.id && (
-                                    <Badge variant="outline" className="ml-1 text-xs">You</Badge>
-                                  )}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatTime(msg.timestamp)}
-                                </span>
-                              </div>
-                              <p className="text-sm mt-1">{msg.message}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </ScrollArea>
-                  
-                  <div className="flex gap-2 pb-4">
-                    <Input 
-                      placeholder="Type your message..." 
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                    />
-                    <Button onClick={handleSendChatMessage}>Send</Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </SheetContent>
-          </Sheet>
         </div>
       )}
     </div>
