@@ -19,3 +19,13 @@ export const checkCollision = (
   const distance = carPosition.distanceTo(objectPosition);
   return distance < collisionRadius;
 };
+
+// Check collision between vehicles (for player and police cars)
+export const checkVehicleCollision = (
+  vehicle1: THREE.Group,
+  vehicle2: THREE.Group,
+  collisionThreshold: number = 3.0
+): boolean => {
+  const distance = vehicle1.position.distanceTo(vehicle2.position);
+  return distance < collisionThreshold;
+};

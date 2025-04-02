@@ -8,7 +8,14 @@ import StartScreen from '../components/game/StartScreen';
 
 // Import game utilities
 import { createPlayerCar, updateCarPhysics } from '../components/game/Car';
-import { PoliceCar, createPoliceCar, updatePoliceCar, flashPoliceLights } from '../components/game/PoliceCar';
+import { 
+  PoliceCar, 
+  createPoliceCar, 
+  updatePoliceCar, 
+  flashPoliceLights, 
+  updatePoliceContact,
+  isPlayerCaught
+} from '../components/game/PoliceCar';
 import { 
   createRoadSegment, 
   createRoadObjectTypes,
@@ -17,6 +24,13 @@ import {
   cleanupRoadObjects 
 } from '../components/game/RoadSystem';
 import { initThreeJS, handleResize, updateCamera } from '../components/game/GameEngine';
+import { checkVehicleCollision } from '../components/game/CollisionSystem';
+import {
+  createDefaultGameState,
+  updateGameState,
+  shouldSpawnPoliceCar,
+  GameState
+} from '../components/game/GameStateManager';
 
 // Define TypeScript interfaces
 interface KeysPressed {
@@ -45,10 +59,17 @@ const Game: React.FC = () => {
   const [maxSpeedFactor, setMaxSpeedFactor] = useState<number>(1); // Default speed multiplier
   const [showSettings, setShowSettings] = useState<boolean>(true);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [gameState, setGameState] = useState<GameState>(createDefaultGameState());
   
   // Start the game
   const startGame = () => {
     setGameStarted(true);
+    setGameState(createDefaultGameState());
+  };
+
+  // Restart the game
+  const restartGame = () => {
+    setGameState(createDefaultGameState());
   };
 
   useEffect(() => {
@@ -96,10 +117,9 @@ const Game: React.FC = () => {
     // Create police cars
     const policeCars: PoliceCar[] = [];
     
-    // Create 3 police cars at different positions
+    // Create initial police cars at different positions
     policeCars.push(createPoliceCar(-5, -50));
     policeCars.push(createPoliceCar(5, -70));
-    policeCars.push(createPoliceCar(0, -90));
     
     // Add police cars to scene
     policeCars.forEach(police => scene.add(police.mesh));
@@ -107,9 +127,17 @@ const Game: React.FC = () => {
     // Flash police lights
     let lightFlashTime = 0;
     
+    // Game time tracking
+    const gameTime = { value: 0 };
+
     // Handle keyboard controls
     const handleKeyDown = (e: KeyboardEvent): void => {
       keysPressed.current[e.key.toLowerCase()] = true;
+      
+      // Restart game with 'r' key if game over
+      if (e.key.toLowerCase() === 'r' && gameState.gameOver) {
+        restartGame();
+      }
     };
     
     const handleKeyUp = (e: KeyboardEvent): void => {
@@ -129,6 +157,15 @@ const Game: React.FC = () => {
     // Game loop
     const animate = (): void => {
       const deltaTime = clock.getDelta();
+      gameTime.value += deltaTime;
+      
+      // If game over, don't update game physics
+      if (gameState.gameOver) {
+        // Just render the scene
+        renderer.render(scene, camera);
+        animationFrameId.current = requestAnimationFrame(animate);
+        return;
+      }
       
       // Update car physics
       const carPhysicsUpdate = updateCarPhysics(
@@ -158,6 +195,7 @@ const Game: React.FC = () => {
       // Update police cars
       policeCars.forEach(police => {
         updatePoliceCar(police, carGroup.position, deltaTime);
+        updatePoliceContact(police, carGroup, gameTime.value);
       });
       
       // Flash police lights
@@ -172,6 +210,54 @@ const Game: React.FC = () => {
       
       // Update camera position
       updateCamera(camera, carGroup.position, carRotation);
+      
+      // Check if we should spawn a new police car
+      if (shouldSpawnPoliceCar(gameState, gameTime.value)) {
+        // Spawn a new police car behind the player
+        const spawnDistance = 100;
+        const spawnAngle = Math.random() * Math.PI * 2; // Random angle
+        const spawnX = carGroup.position.x + Math.sin(spawnAngle) * spawnDistance;
+        const spawnZ = carGroup.position.z + Math.cos(spawnAngle) * spawnDistance;
+        
+        const newPoliceCar = createPoliceCar(spawnX, spawnZ);
+        policeCars.push(newPoliceCar);
+        scene.add(newPoliceCar.mesh);
+        
+        // Update last spawn time
+        setGameState(prevState => ({
+          ...prevState,
+          spawnTimers: {
+            ...prevState.spawnTimers,
+            lastPoliceSpawnTime: gameTime.value
+          }
+        }));
+      }
+      
+      // Prepare police contact data for game state update
+      const policeContacts = policeCars.map(police => {
+        return {
+          touching: police.touchingPlayer,
+          duration: police.touchStartTime ? gameTime.value - police.touchStartTime : 0
+        };
+      });
+      
+      // Update game state
+      const newGameState = updateGameState(
+        gameState,
+        carGroup.position,
+        deltaTime,
+        policeContacts
+      );
+      
+      // Only update state if something changed
+      if (
+        newGameState.score !== gameState.score ||
+        newGameState.caught !== gameState.caught ||
+        newGameState.caughtProgress !== gameState.caughtProgress ||
+        newGameState.gameOver !== gameState.gameOver
+      ) {
+        setGameState(newGameState);
+      }
       
       // Render scene
       renderer.render(scene, camera);
@@ -204,14 +290,61 @@ const Game: React.FC = () => {
         mountRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [carColor, maxSpeedFactor, gameStarted]); // Re-run effect when car color or speed factor changes
+  }, [carColor, maxSpeedFactor, gameStarted, gameState.gameOver]); // Added gameOver to dependency array
+
+  // Create a UI to show the player's caught progress and game state
+  const renderGameStateUI = () => {
+    if (!gameStarted) return null;
+    
+    return (
+      <div className="fixed inset-x-0 top-0 p-4 z-10">
+        <div className="bg-black/50 text-white p-2 rounded mb-2">
+          <p>Score: {gameState.score}</p>
+          <p>Distance: {gameState.distanceTraveled.toFixed(2)} km</p>
+          <p>Time: {Math.floor(gameState.timeSurvived)} seconds</p>
+        </div>
+        
+        {/* Show caught progress when being caught */}
+        {gameState.caughtProgress > 0 && !gameState.gameOver && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+            <div 
+              className="bg-red-600 h-2.5 rounded-full" 
+              style={{ width: `${gameState.caughtProgress * 100}%` }}
+            ></div>
+          </div>
+        )}
+        
+        {/* Game over screen */}
+        {gameState.gameOver && (
+          <div className="fixed inset-0 flex items-center justify-center z-20 bg-black/70">
+            <div className="bg-white p-8 rounded shadow-lg text-center">
+              <h2 className="text-2xl font-bold text-red-600 mb-4">BUSTED!</h2>
+              <p className="mb-4">You were caught by the police!</p>
+              <p className="mb-2">Final Score: {gameState.score}</p>
+              <p className="mb-2">Distance Traveled: {gameState.distanceTraveled.toFixed(2)} km</p>
+              <p className="mb-4">Time Survived: {Math.floor(gameState.timeSurvived)} seconds</p>
+              <button 
+                onClick={restartGame} 
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Try Again
+              </button>
+              <p className="mt-4 text-sm text-gray-500">Press 'R' to restart</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-racing-dark">
       {!gameStarted ? (
         <StartScreen onStartGame={startGame} />
       ) : (
-        <div ref={mountRef} className="w-screen h-screen overflow-hidden">
+        <div className="relative w-screen h-screen overflow-hidden">
+          <div ref={mountRef} className="w-screen h-screen overflow-hidden"></div>
+          {renderGameStateUI()}
           <GameSettings
             showSettings={showSettings}
             setShowSettings={setShowSettings}

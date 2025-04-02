@@ -15,6 +15,8 @@ export interface PoliceCar {
     rl: THREE.Mesh;
     rr: THREE.Mesh;
   };
+  touchingPlayer: boolean;
+  touchStartTime: number | null;
 }
 
 export const createPoliceCar = (x: number, z: number): PoliceCar => {
@@ -115,7 +117,9 @@ export const createPoliceCar = (x: number, z: number): PoliceCar => {
     lights: {
       red: redLight,
       blue: blueLight
-    }
+    },
+    touchingPlayer: false,
+    touchStartTime: null
   };
 };
 
@@ -144,14 +148,15 @@ export const updatePoliceCar = (police: PoliceCar, playerPosition: THREE.Vector3
     police.mesh.rotation.y = angleToPlayer;
   }
   
-  // Calculate distance to player
+  // Calculate distance to player - police cars will now always chase player
   const distanceToPlayer = Math.sqrt(dx * dx + dz * dz);
   
-  // Move towards player with a maximum chase distance
-  if (distanceToPlayer > police.chaseDistance) {
-    police.mesh.position.x += Math.sin(police.mesh.rotation.y) * police.speed;
-    police.mesh.position.z += Math.cos(police.mesh.rotation.y) * police.speed;
-  }
+  // Adjust speed based on distance (more aggressive when closer)
+  const speedMultiplier = distanceToPlayer < 10 ? 1.2 : 1.0;
+  
+  // Move towards player - now always chase
+  police.mesh.position.x += Math.sin(police.mesh.rotation.y) * police.speed * speedMultiplier;
+  police.mesh.position.z += Math.cos(police.mesh.rotation.y) * police.speed * speedMultiplier;
   
   // Animate wheels
   police.wheels.fl.rotation.x += police.speed * 0.5;
@@ -172,4 +177,41 @@ export const flashPoliceLights = (policeCars: PoliceCar[], lightFlashTime: numbe
       (police.lights.blue.material as THREE.MeshBasicMaterial).color.setHex(0x0000ff);
     }
   });
+};
+
+// New function to handle police car contacts with the player
+export const updatePoliceContact = (
+  police: PoliceCar, 
+  playerGroup: THREE.Group, 
+  currentTime: number,
+  collisionThreshold: number = 3.0
+): void => {
+  // Check if police car is touching player
+  const touching = police.mesh.position.distanceTo(playerGroup.position) < collisionThreshold;
+  
+  if (touching) {
+    if (!police.touchingPlayer) {
+      // Just started touching
+      police.touchingPlayer = true;
+      police.touchStartTime = currentTime;
+    }
+  } else {
+    // No longer touching
+    police.touchingPlayer = false;
+    police.touchStartTime = null;
+  }
+};
+
+// Function to check if player is caught by the police
+export const isPlayerCaught = (policeCars: PoliceCar[], currentTime: number, requiredTime: number = 5): boolean => {
+  // Check if any police car has been touching player for the required time
+  for (const police of policeCars) {
+    if (police.touchingPlayer && police.touchStartTime !== null) {
+      const touchDuration = currentTime - police.touchStartTime;
+      if (touchDuration >= requiredTime) {
+        return true;
+      }
+    }
+  }
+  return false;
 };
