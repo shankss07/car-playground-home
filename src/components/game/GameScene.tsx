@@ -19,6 +19,7 @@ import {
 } from './RoadSystem';
 import { initThreeJS, handleResize } from './GameEngine';
 import { GameState } from './GameStateManager';
+import { shouldSpawnPoliceCar, spawnPoliceCar } from './PoliceSpawner';
 
 interface GameSceneProps {
   carColor: number;
@@ -56,21 +57,6 @@ const GameScene: React.FC<GameSceneProps> = ({
   const mountRef = useRef<HTMLDivElement>(null);
   const keysPressed = useRef<KeysPressed>({});
   const animationFrameId = useRef<number | null>(null);
-
-  const shouldSpawnPoliceCar = (gameState: GameState, currentTime: number): boolean => {
-    // Base time between police car spawns (in seconds)
-    const baseSpawnInterval = 30; 
-    
-    // Reduce spawn interval as game progresses (minimum 10 seconds between spawns)
-    const adjustedInterval = Math.max(10, baseSpawnInterval - Math.floor(gameState.timeSurvived / 60));
-    
-    // Check if enough time has passed since last spawn
-    if (currentTime - gameState.spawnTimers.lastPoliceSpawnTime > adjustedInterval) {
-      return true;
-    }
-    
-    return false;
-  };
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -250,15 +236,8 @@ const GameScene: React.FC<GameSceneProps> = ({
       
       // Check if we should spawn a new police car
       if (shouldSpawnPoliceCar(gameState, gameTime.value)) {
-        // Spawn a new police car behind the player
-        const spawnDistance = 100;
-        const spawnAngle = Math.random() * Math.PI * 2; // Random angle
-        const spawnX = carGroup.position.x + Math.sin(spawnAngle) * spawnDistance;
-        const spawnZ = carGroup.position.z + Math.cos(spawnAngle) * spawnDistance;
-        
-        const newPoliceCar = createPoliceCar(spawnX, spawnZ);
-        policeCars.push(newPoliceCar);
-        scene.add(newPoliceCar.mesh);
+        // Spawn a new police car using our utility function
+        spawnPoliceCar(scene, carGroup.position, policeCars);
         
         // Update last spawn time
         updateGameState({
@@ -319,21 +298,6 @@ const GameScene: React.FC<GameSceneProps> = ({
         newState.gameOver = newState.caught;
         
         return newState;
-      };
-
-      const shouldSpawnPoliceCar = (gameState: GameState, currentTime: number): boolean => {
-        // Base time between police car spawns (in seconds)
-        const baseSpawnInterval = 30; 
-        
-        // Reduce spawn interval as game progresses (minimum 10 seconds between spawns)
-        const adjustedInterval = Math.max(10, baseSpawnInterval - Math.floor(gameState.timeSurvived / 60));
-        
-        // Check if enough time has passed since last spawn
-        if (currentTime - gameState.spawnTimers.lastPoliceSpawnTime > adjustedInterval) {
-          return true;
-        }
-        
-        return false;
       };
       
       // Update game state
