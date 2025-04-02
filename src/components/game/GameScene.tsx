@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -57,6 +56,21 @@ const GameScene: React.FC<GameSceneProps> = ({
   const mountRef = useRef<HTMLDivElement>(null);
   const keysPressed = useRef<KeysPressed>({});
   const animationFrameId = useRef<number | null>(null);
+
+  const shouldSpawnPoliceCar = (gameState: GameState, currentTime: number): boolean => {
+    // Base time between police car spawns (in seconds)
+    const baseSpawnInterval = 30; 
+    
+    // Reduce spawn interval as game progresses (minimum 10 seconds between spawns)
+    const adjustedInterval = Math.max(10, baseSpawnInterval - Math.floor(gameState.timeSurvived / 60));
+    
+    // Check if enough time has passed since last spawn
+    if (currentTime - gameState.spawnTimers.lastPoliceSpawnTime > adjustedInterval) {
+      return true;
+    }
+    
+    return false;
+  };
 
   useEffect(() => {
     if (!mountRef.current) return;
