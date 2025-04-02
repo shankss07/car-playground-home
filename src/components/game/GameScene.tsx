@@ -18,7 +18,7 @@ import {
   cleanupRoadObjects 
 } from './RoadSystem';
 import { initThreeJS, handleResize } from './GameEngine';
-import { GameState } from './GameStateManager';
+import { GameState, updateGameState } from './GameStateManager';
 import { shouldSpawnPoliceCar, spawnPoliceCar } from './PoliceSpawner';
 
 interface GameSceneProps {
@@ -51,7 +51,7 @@ const GameScene: React.FC<GameSceneProps> = ({
   carColor, 
   maxSpeedFactor, 
   gameState,
-  updateGameState,
+  updateGameState: setGameState,
   gameTime
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -119,7 +119,7 @@ const GameScene: React.FC<GameSceneProps> = ({
       
       // Restart game with 'r' key if game over
       if (e.key.toLowerCase() === 'r' && gameState.gameOver) {
-        updateGameState({
+        setGameState({
           ...gameState,
           gameOver: false,
           score: 0,
@@ -240,7 +240,7 @@ const GameScene: React.FC<GameSceneProps> = ({
         spawnPoliceCar(scene, carGroup.position, policeCars);
         
         // Update last spawn time
-        updateGameState({
+        setGameState({
           ...gameState,
           spawnTimers: {
             ...gameState.spawnTimers,
@@ -257,51 +257,8 @@ const GameScene: React.FC<GameSceneProps> = ({
         };
       });
       
-      // Import the necessary functions from GameStateManager
-      const updateGameStateFromManager = (
-        gameState: GameState,
-        carPosition: THREE.Vector3,
-        deltaTime: number,
-        policeContacts: { touching: boolean, duration: number }[]
-      ): GameState => {
-        // Copy the current state to avoid direct mutations
-        const newState = { ...gameState };
-        
-        // Update distance traveled (convert to kilometers and round to 2 decimal places)
-        newState.distanceTraveled += (Math.abs(carPosition.z) * deltaTime * 0.01);
-        newState.distanceTraveled = Math.round(newState.distanceTraveled * 100) / 100;
-        
-        // Update score based on distance
-        newState.score = Math.floor(newState.distanceTraveled * 10);
-        
-        // Update time survived
-        newState.timeSurvived += deltaTime;
-        
-        // Update caught progress based on police contacts
-        let maxContactDuration = 0;
-        for (const contact of policeContacts) {
-          if (contact.touching && contact.duration > maxContactDuration) {
-            maxContactDuration = contact.duration;
-          }
-        }
-        
-        // Maximum duration for being caught is 5 seconds
-        const maxCaughtTime = 5;
-        
-        // Update caught progress (0-1 range)
-        newState.caughtProgress = Math.min(1, maxContactDuration / maxCaughtTime);
-        
-        // Determine if player is caught
-        newState.caught = newState.caughtProgress >= 1;
-        
-        // Determine if game is over
-        newState.gameOver = newState.caught;
-        
-        return newState;
-      };
-      
-      // Update game state
-      const newGameState = updateGameStateFromManager(
+      // Update game state using the imported function from GameStateManager
+      const newGameState = updateGameState(
         gameState,
         carGroup.position,
         deltaTime,
@@ -315,7 +272,7 @@ const GameScene: React.FC<GameSceneProps> = ({
         newGameState.caughtProgress !== gameState.caughtProgress ||
         newGameState.gameOver !== gameState.gameOver
       ) {
-        updateGameState(newGameState);
+        setGameState(newGameState);
       }
       
       // Render scene
@@ -349,7 +306,7 @@ const GameScene: React.FC<GameSceneProps> = ({
         mountRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [carColor, maxSpeedFactor, gameState, updateGameState, gameTime]);
+  }, [carColor, maxSpeedFactor, gameState, setGameState, gameTime]);
 
   return <div ref={mountRef} className="w-screen h-screen overflow-hidden"></div>;
 };
